@@ -1,0 +1,20 @@
+# Production configuration (contains sensitive deployment info)
+# This file should NOT be committed to git
+production-config.txt
+
+# Node modules (if you add any npm dependencies later)
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
