@@ -6,7 +6,22 @@ This is a TEMPLATE file. Copy this to `production-config.txt` and fill in your
 actual production values. The `production-config.txt` file is NOT committed to
 Git (it contains your sensitive deployment information).
 
-SETUP INSTRUCTIONS:
+================================================================================
+⚠️ CRITICAL DEPLOYMENT REMINDER
+================================================================================
+
+BEFORE EVERY CLOUD RUN DEPLOYMENT:
+  1. Run: node prepareDeployment.js prepare [ConfigName]
+  2. Verify: node verifyDeployment.js (optional but recommended)
+  3. Deploy to Cloud Run
+  4. After deployment completes: node prepareDeployment.js restore
+
+If you skip step 1, deployment will upload ALL PDFs/PNGs and take FOREVER!
+
+================================================================================
+SETUP INSTRUCTIONS
+================================================================================
+
 1. Copy this file to `production-config.txt` in the same directory
 2. Fill in all values in the configuration sections below
 3. Use the deployment scripts: `node updateServerFromConfig.js` and
@@ -81,8 +96,15 @@ HOW MODE SELECTION WORKS:
 TO ENABLE PNG MODE FOR iOS:
   1. Set SERVE_PNGS_FOR_IOS=true in Cloud Run environment variables
   2. Export PDF pages as PNG files: [basename]-1.png, [basename]-2.png, etc.
-  3. Place PNGs in PDFPasswordServer/pngs/ directory
-  4. Deploy to Cloud Run (PNGs are automatically included)
+  3. Create a subdirectory in PDFPasswordServer/pngs/ named after the PDF basename
+     Example: For "cover-letter-cv.pdf", create PDFPasswordServer/pngs/cover-letter-cv/
+  4. Place PNGs in that subdirectory: PDFPasswordServer/pngs/[basename]/[basename]-1.png
+  5. ⚠️ CRITICAL: Before deploying to Cloud Run, ALWAYS run:
+     node prepareDeployment.js prepare [ConfigName]
+     This filters out PDFs/PNGs from other deployments to speed up upload!
+  6. Deploy to Cloud Run (PNGs are automatically included)
+  7. After deployment completes, restore files:
+     node prepareDeployment.js restore
 
 ================================================================================
 DEPLOYMENT CONFIGURATIONS
@@ -106,48 +128,70 @@ To add a new deployment:
 === ExampleProject ===
 ================================================================================
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VALUES YOU NEED TO CHANGE MANUALLY (Fill these in before deployment)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 1. PDF Filename:
    your-document.pdf
 
-2. Password (for both React app and Cloud Run):
+2. Password (for Cloud Run server only):
    your-password-here
 
-3. Allowed Origin (for CORS and CSP frame-ancestors):
-   https://yourdomain.com
-
-4. Cloud Run URL:
-   https://your-cloud-run-service-url.run.app
-
-5. GCP Project ID:
-   your-gcp-project-id
-
-6. Production Subdirectory:
+3. Production Subdirectory:
    your-subdirectory
 
-7. Staging Subdirectory (nested under Production):
+4. Staging Subdirectory (nested under Production):
    stage
 
-8. JWT Secret:
-   generate-a-long-random-secret-key-here
+5. Cloud Run Service Name:
+   your-service-name
+
+6. Serve PNGs for iOS (true/false):
+   false
+   ⚠️ When true: iOS devices get high-res PNG images instead of PDF.js
+   ⚠️ When false: iOS devices use PDF.js renderer (default)
+   ⚠️ Requires PNG files in PDFPasswordServer/pngs/ directory
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VALUES USUALLY SAME/REUSED (Change only if different from previous deployment)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+7. Allowed Origin (for CORS and CSP frame-ancestors):
+   https://yourdomain.com
+
+8. GCP Project ID:
+   your-gcp-project-id
+   ⚠️ IMPORTANT: Use THIS number for gcloud commands, NOT the number in the URL!
 
 9. GCP Region:
    us-west2
 
-10. Cloud Run Service Name:
-    your-service-name
+10. JWT Secret:
+    generate-a-long-random-secret-key-here
+    ⚠️ Can be reused from previous deployments for convenience
 
-11. Serve PNGs for iOS (true/false):
-    false
-    ⚠️ When true: iOS devices get high-res PNG images instead of PDF.js
-    ⚠️ When false: iOS devices use PDF.js renderer (default)
-    ⚠️ Requires PNG files in PDFPasswordServer/pngs/ directory
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VALUES AUTO-UPDATED BY DEPLOYMENT PROCESS (AI will update these)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+11. Cloud Run URL:
+    https://your-cloud-run-service-url.run.app
+    ⚠️ WARNING: The number in this URL is NOT the Project ID!
+    ⚠️ This is the Cloud Run service's subdomain, which may differ from the project.
+    ⚠️ This value will be updated automatically after Cloud Run deployment completes.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+INFORMATIONAL (No action needed)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 12. PNG Naming Scheme (informational):
-    [PDF-basename]-[pageNumber].png
+    pngs/[PDF-basename]/[PDF-basename]-[pageNumber].png
     ⚠️ This is AUTOMATIC - you don't configure it, just follow this format
-    ⚠️ Example: If PDF is "your-document.pdf", name PNGs as:
-       your-document-1.png, your-document-2.png, your-document-3.png, etc.
-    ⚠️ Place all PNG files in PDFPasswordServer/pngs/ directory
+    ⚠️ Example: If PDF is "your-document.pdf":
+       - Create directory: PDFPasswordServer/pngs/your-document/
+       - Place PNGs inside: your-document-1.png, your-document-2.png, etc.
+    ⚠️ PNGs must be in a subdirectory named after the PDF basename
     ⚠️ Page numbers should start at 1 and be sequential (no gaps)
 
 NOTE: When staging, the full path will be: [Production Subdirectory]/[Staging Subdirectory]/
@@ -185,6 +229,126 @@ UPDATE CLIENT CODE:
 
 If production-config.txt is missing, the scripts will provide instructions
 on how to set it up using this template file.
+
+================================================================================
+COMMON USER COMMANDS
+================================================================================
+
+### Deploy a New Full-Stack Service
+
+**Scenario:** User wants to deploy a completely new PDF service (new PDF/PNGs, new Cloud Run URL, new React app subdirectory).
+
+**WHEN USER SAYS:** "deploy a new full-stack service" or "deploy new service" or "create new deployment"
+
+**Prerequisites:**
+1. Add a new configuration section to production-config.txt (e.g., === MyNewProject ===)
+2. Fill in values 1-6 manually (PDF filename, password, subdirectory, service name, PNG mode)
+3. Place your PDF in PDFPasswordServer/pdfs/ and PNGs (if needed) in PDFPasswordServer/pngs/[basename]/
+4. Values 7-10 will be reused from previous deployments (or update if different)
+5. Value 11 (Cloud Run URL) will be auto-updated after deployment
+
+**Workflow:**
+1. Prepare deployment (filter files to only include this project's PDF/PNGs):
+   node prepareDeployment.js prepare [ConfigName]
+
+2. Verify what will be uploaded (optional but recommended):
+   node verifyDeployment.js
+
+3. Update server code with config values:
+   node updateServerFromConfig.js update [ConfigName]
+
+4. Navigate to server directory and deploy to Cloud Run:
+   cd ../PDFPasswordServer
+   gcloud config set project [VALUE 8: GCP Project ID] --quiet
+   gcloud run deploy [VALUE 5: Cloud Run Service Name] --source . --platform managed --region [VALUE 9: GCP Region] --allow-unauthenticated --quiet
+
+5. Get the new Cloud Run URL:
+   gcloud run services describe [VALUE 5: Cloud Run Service Name] --region [VALUE 9: GCP Region] --format="value(status.url)"
+
+6. Update config value 11 (Cloud Run URL) with the URL from step 5
+   (AI will update this automatically)
+
+7. Set environment variables on Cloud Run:
+   gcloud run services update [VALUE 5: Cloud Run Service Name] --region [VALUE 9: GCP Region] --update-env-vars="PDF_PASSWORD=[VALUE 2: Password],JWT_SECRET=[VALUE 10: JWT Secret],ALLOWED_ORIGINS=[VALUE 7: Allowed Origin],SERVE_PNGS_FOR_IOS=[VALUE 6: Serve PNGs for iOS]" --quiet
+
+8. Restore all PDFs/PNGs from backup (now that deployment is complete):
+   cd ../PDFPasswordDevOps
+   node prepareDeployment.js restore
+
+9. Update React app with config values:
+   node updateClientFromConfig.js update [ConfigName]
+
+10. Build React app (with clean):
+    cd ../PDFPasswordOverlay
+    npm run build:clean
+
+11. Upload build folder contents to cPanel via FTP:
+    Upload to: public_html/[VALUE 3: Production Subdirectory]/
+
+**Note:** The AI assistant can automate most of these steps for you. Just say "deploy a new full-stack service" and provide the config name, or update values 1-6 in the config first.
+
+### Update Existing Service
+
+**Scenario:** User wants to update an existing service (e.g., new PDF, password change, etc.)
+
+**WHEN USER SAYS:** "update the PDF" or "deploy PDF to Cloud Run" or "push new PDF" or "update existing service"
+
+1. Update values in production-config.txt for the existing config section
+2. Prepare deployment (filter files):
+   node prepareDeployment.js prepare [ExistingConfigName]
+3. Follow steps 3-11 from "Deploy a New Full-Stack Service" above
+
+### Build for Production
+
+**Scenario:** User wants to build and deploy the React app to production subdirectory
+
+**WHEN USER SAYS:** "build for production" or "deploy to production"
+
+1. Update React app with config values:
+   node updateClientFromConfig.js update [ConfigName]
+
+2. Build React app (with clean):
+   cd ../PDFPasswordOverlay
+   npm run build:clean
+
+3. Upload build folder contents to cPanel via FTP:
+   Upload to: public_html/[VALUE 3: Production Subdirectory]/
+
+4. (Optional) Revert React app to white-label:
+   cd ../PDFPasswordDevOps
+   node updateClientFromConfig.js revert
+
+### Build for Staging
+
+**Scenario:** User wants to build and deploy the React app to staging subdirectory
+
+**WHEN USER SAYS:** "build for staging" or "deploy to staging"
+
+1. Update React app with staging config values:
+   node updateClientFromConfig.js update [ConfigName] --staging
+
+2. Build React app (with clean):
+   cd ../PDFPasswordOverlay
+   npm run build:clean
+
+3. Upload build folder contents to cPanel via FTP:
+   Upload to: public_html/[VALUE 3: Production Subdirectory]/[VALUE 4: Staging Subdirectory]/
+
+4. (Optional) Revert React app to white-label:
+   cd ../PDFPasswordDevOps
+   node updateClientFromConfig.js revert
+
+### Revert to White-Label
+
+**Scenario:** User wants to revert code changes back to white-label state
+
+**WHEN USER SAYS:** "revert to white-label" or "revert code"
+
+1. Revert server code:
+   node updateServerFromConfig.js revert
+
+2. Revert client code:
+   node updateClientFromConfig.js revert
 
 ================================================================================
 

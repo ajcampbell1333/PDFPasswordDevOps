@@ -141,18 +141,46 @@ function updateServer(configName = 'ExampleProject') {
   let serverContent = fs.readFileSync(SERVER_FILE, 'utf8');
   
   // Update frame-ancestors
+  // Pattern: "frame-ancestors": ["'self'", "https://yourdomain.com"]
   serverContent = serverContent.replace(
-    /"frame-ancestors":\s*\["self",\s*"[^"]*"\]/,
+    /"frame-ancestors":\s*\[["']self["'],\s*["'][^"']*["']\]/,
     `"frame-ancestors": ["'self'", "${config.allowedOrigin}"]`
   );
+  
+  // Also try a more flexible pattern that matches the exact format
+  if (serverContent.includes('https://yourdomain.com')) {
+    serverContent = serverContent.replace(
+      /"frame-ancestors":\s*\[.*?\]/,
+      `"frame-ancestors": ["'self'", "${config.allowedOrigin}"]`
+    );
+  }
   
   // Update img-src (handle both single domain and wildcard)
   const domain = config.allowedOrigin.replace(/^https?:\/\//, '');
   const domainWildcard = `https://*.${domain.replace(/^www\./, '')}`;
-  serverContent = serverContent.replace(
-    /"img-src":\s*\["self",\s*"data:",\s*"[^"]*",\s*"[^"]*"\]/,
-    `"img-src": ["'self'", "data:", "${config.allowedOrigin}", "${domainWildcard}"]`
-  );
+  // Try multiple patterns to match img-src
+  const imgSrcPatterns = [
+    /"img-src":\s*\[["']self["'],\s*["']data:["'],\s*["'][^"']*["'],\s*["'][^"']*["']\]/,
+    /"img-src":\s*\[.*?\]/  // Fallback: match any array
+  ];
+  let imgSrcReplaced = false;
+  for (const pattern of imgSrcPatterns) {
+    if (serverContent.match(pattern)) {
+      serverContent = serverContent.replace(
+        pattern,
+        `"img-src": ["'self'", "data:", "${config.allowedOrigin}", "${domainWildcard}"]`
+      );
+      imgSrcReplaced = true;
+      break;
+    }
+  }
+  // If still not replaced and contains placeholder, do a simple string replace
+  if (!imgSrcReplaced && serverContent.includes('https://yourdomain.com')) {
+    serverContent = serverContent.replace(
+      /"img-src":\s*\[.*?\]/,
+      `"img-src": ["'self'", "data:", "${config.allowedOrigin}", "${domainWildcard}"]`
+    );
+  }
   
   fs.writeFileSync(SERVER_FILE, serverContent, 'utf8');
   console.log(`✅ Updated server.js with config: ${configName}`);

@@ -41,12 +41,26 @@ function parseConfig(configName = 'ExampleProject', isStaging = false) {
     throw new Error(`Config section "${configName}" not found in production-config.txt`);
   }
   
-  // Find the start of the content (after the separator line following the header)
-  let contentStart = configContent.indexOf('\n', headerIndex + sectionHeader.length);
-  if (contentStart === -1) {
-    throw new Error(`Config section "${configName}" has invalid format`);
+  // Find the start of the actual config values section
+  // Skip past informational headers and find "1. PDF Filename:" (the first real config value)
+  let contentStart = headerIndex + sectionHeader.length;
+  const pdfFilenameMatch = configContent.substring(contentStart).match(/\n1\.\s+PDF Filename:/);
+  if (pdfFilenameMatch) {
+    contentStart = contentStart + pdfFilenameMatch.index + 1; // +1 to skip the newline
+  } else {
+    // Fallback: look for any "1. " pattern after the section header
+    const firstMatch = configContent.substring(contentStart).match(/\n1\.\s+/);
+    if (firstMatch) {
+      contentStart = contentStart + firstMatch.index + 1;
+    } else {
+      // Last resort: just find the next newline after header
+      contentStart = configContent.indexOf('\n', headerIndex + sectionHeader.length);
+      if (contentStart === -1) {
+        throw new Error(`Config section "${configName}" has invalid format`);
+      }
+      contentStart++; // Skip the newline
+    }
   }
-  contentStart++; // Skip the newline
   
   // Find the end (next section header or end of file)
   const nextSectionRegex = /\n=== \w+ ===/g;
@@ -116,7 +130,7 @@ function parseConfig(configName = 'ExampleProject', isStaging = false) {
   
   return {
     pdfFilename: values['PDF Filename'] || '',
-    password: values['Password'] || '',
+    password: values['Password (for Cloud Run server only)'] || values['Password'] || '',
     cloudRunUrl: values['Cloud Run URL'] || '',
     subdirectory: subdirectory,
     stagingSubdirectory: values['Staging Subdirectory'] || ''
@@ -130,9 +144,12 @@ function updateApp(configName = 'ExampleProject', isStaging = false) {
   let appContent = fs.readFileSync(APP_FILE, 'utf8');
   
   // Update CORRECT_PASSWORD
+  // Note: When using server-hosted PDFs, password is NOT stored client-side for security
+  // The password is only used for local PDF mode (serverHostedPDF = false)
+  // For server-hosted PDFs, we leave it empty - authentication happens server-side only
   appContent = appContent.replace(
     /const CORRECT_PASSWORD = '[^']*';/,
-    `const CORRECT_PASSWORD = '${config.password}';`
+    `const CORRECT_PASSWORD = ''; // Password validated server-side only (not stored client-side)`
   );
   
   // Update productionSubdirectory
